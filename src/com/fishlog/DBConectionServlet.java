@@ -2,13 +2,18 @@ package com.fishlog;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.Part;
 
 import com.google.gson.Gson;
 
@@ -17,6 +22,7 @@ import com.google.gson.Gson;
  * Servlet implementation class DBConectionServlet
  */
 @WebServlet("/DBConectionServlet")
+@MultipartConfig
 public class DBConectionServlet extends HttpServlet {
 	private static final long serialVersionUID = 1L;
        
@@ -55,14 +61,16 @@ public class DBConectionServlet extends HttpServlet {
 			String lure = request.getParameter("recLure");
 			String weather = request.getParameter("recWeather");
 			String species = request.getParameter("recSpecies");
-			//Bitmap image = request.getParameter("recImage");
-			String fromClientphoto= request.getParameter("recImage");
-			byte[] b = fromClientphoto.getBytes();
-
-			FileOutputStream fos = new FileOutputStream("./testImg.jpg");
-			fos.write(b);
-		    fos.close(); 
 			
+			
+			/*
+			 * This assumes the request is of type multipart/form-data,
+			 * and that there is only one file included.  If you want to
+			 * include multiple files, you can use 'getParts', and then look
+			 * for each one that is of type file.
+			 */
+			Part filePart = request.getPart("recImage");
+			Files.copy( filePart.getInputStream(), Paths.get(filePart.getSubmittedFileName()) );			
 			
 			
 			//response.setContentType("application/xml");
