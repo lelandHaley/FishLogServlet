@@ -8,9 +8,8 @@ import java.sql.Statement;
 
 public class DBConnection {
 
-	//private static String url = "jdbc:mysql://127.0.0.1:8889/Fishlog"; 
 	private static String url="jdbc:mysql://localhost:8889/Fishlog";
-	private String driver="org.gjt.mm.mysql.Driver";
+	private String driver = "org.gjt.mm.mysql.Driver";
 	private static String username="root";
 	private static String password= "root";
 	private static Connection con = null; 

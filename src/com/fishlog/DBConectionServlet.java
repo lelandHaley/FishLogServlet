@@ -1,14 +1,9 @@
 package com.fishlog;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
-import java.util.List;
 import java.util.Properties;
 
 import javax.mail.Message;
@@ -25,14 +20,6 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.Part;
-
-import org.apache.tomcat.util.http.fileupload.FileItem;
-import org.apache.tomcat.util.http.fileupload.FileUploadException;
-import org.apache.tomcat.util.http.fileupload.RequestContext;
-import org.apache.tomcat.util.http.fileupload.disk.DiskFileItemFactory;
-import org.apache.tomcat.util.http.fileupload.servlet.ServletFileUpload;
-
 import com.google.gson.Gson;
 
 
@@ -69,9 +56,7 @@ public class DBConectionServlet extends HttpServlet {
 		System.out.println("doPost"); 
 		String function = request.getParameter("func");
 		System.out.println("function is :" + function + ":");
-		//response.getWriter().append("Served at: ").append(request.getContextPath());
 		if(function.equals("insertRecord")){
-			ServletContext sc = this.getServletContext(); 
 			String name = request.getParameter("recName");
 			String lat = request.getParameter("recLat");
 			String lon = request.getParameter("recLon");
@@ -81,27 +66,13 @@ public class DBConectionServlet extends HttpServlet {
 			String species = request.getParameter("recSpecies");
 			String temp = request.getParameter("recTemp");
 			String path = request.getParameter("recPath");
-			//Bitmap image = request.getParameter("recImage");
-			String fromClientphoto= request.getParameter("recImage");
-			Calendar cal = Calendar.getInstance();
 			SimpleDateFormat sdf = new SimpleDateFormat("yyyy:MM:dd:HH:mm");
 			String time = sdf.format(new Date());
+			SimpleDateFormat sdf2 = new SimpleDateFormat("HH");
+			String hours = sdf2.format(new Date());
 
-
-			//	        byte[] b = fromClientphoto.getBytes();
-			//
-			//			FileOutputStream fos = new FileOutputStream("./testImg.jpg");
-			//			fos.write(b);
-			//			fos.close(); 
-
-			// Part filePart = request.getPart("recImage");
-			//Files.copy( filePart.getInputStream(), Paths.get(filePart.getSubmittedFileName()) );
-
-			//response.setContentType("application/xml");
 			DBAccess dba = new DBAccess();
-			//boolean flag = dba.insertRecord(name, lat, lon, lure, weather, species);
-			boolean flag = dba.insertRecord(name, lat, lon, lure, weather, species, time, temp, path, user);
-			//request.setAttribute("flag", flag);
+			boolean flag = dba.insertRecord(name, lat, lon, lure, weather, species, time, temp, path, user, hours);
 
 			if(flag){	
 				Gson gson = new Gson();
@@ -114,8 +85,27 @@ public class DBConectionServlet extends HttpServlet {
 				response.getWriter().write(jsonStr);
 			}
 		}
+		else if(function.equals("uploadRecord")){
+			String name = request.getParameter("name");
+			String lat = request.getParameter("lat");
+			String lon = request.getParameter("lon");
+			String lure = request.getParameter("lure");
+			String weather = request.getParameter("weather");
+			String species = request.getParameter("species");
+			String time = request.getParameter("time");
+			String temp = request.getParameter("temp");
+			String user = request.getParameter("user");
+			String path = request.getParameter("path");
+			String hour = request.getParameter("hour");
+			
+			DBAccess dba = new DBAccess();
+			boolean flag = dba.insertRecord(name, lat, lon, lure, weather, species, time, temp, path, user, hour);
+			Gson gson = new Gson();
+			String jsonStr = gson.toJson("Response:" + flag);
+			response.getWriter().write(jsonStr);
+
+		}
 		else if(function.equals("createUser")){
-			ServletContext sc = this.getServletContext(); 
 			String uname = request.getParameter("uname");
 			String pword = request.getParameter("pword");
 			String email = request.getParameter("email");
@@ -129,25 +119,15 @@ public class DBConectionServlet extends HttpServlet {
 			DBAccess dba = new DBAccess();
 			int flag = dba.createUser(uname, pword, email);
 
-			//request.setAttribute("flag", flag);
-
-			//if(flag == 0){	
 			Gson gson = new Gson();
 			String jsonStr = gson.toJson(flag);
 			if(flag == 0){
 				Emailer e = new Emailer();
 				e.sendEmail(fromAddr, email, welcomSubject, welcomeBody);
 			}
-			//response.setStatus(flag);
 			response.getWriter().write(" responsCode:" + jsonStr);				
-			//				}
-			//				else{
-			//					Gson gson = new Gson();
-			//					String jsonStr = gson.toJson(Integer.toString(flag));
-			//					response.getWriter().write(jsonStr);
-			//				}
+
 		}else if(function.equals("checkLogin")){
-			ServletContext sc = this.getServletContext(); 
 			String uname = request.getParameter("uname");
 			String pword = request.getParameter("pword");
 
@@ -158,7 +138,6 @@ public class DBConectionServlet extends HttpServlet {
 			response.getWriter().write(" responsCode:" + jsonStr);				
 		}else if(function.equals("getRecords")){
 
-			ServletContext sc = this.getServletContext(); 
 			String uname = request.getParameter("uname");
 			String filter = request.getParameter("filter");
 			String filterSpecifics = request.getParameter("filterSpecifics");
@@ -193,10 +172,6 @@ public class DBConectionServlet extends HttpServlet {
 			String origTime = request.getParameter("origTime");
 			String origTemp = request.getParameter("origTemp");
 
-
-
-
-
 			DBAccess dba = new DBAccess();
 			int results = dba.editRecord(uname, newName, newLat, newLon, newLure, newWeather, newSpecies, newTime, newTemp, origName, origLat, origLon, origLure, origWeather, origSpecies, origTime, origTemp);
 
@@ -223,61 +198,70 @@ public class DBConectionServlet extends HttpServlet {
 			String jsonStr = gson.toJson(results);
 			response.getWriter().write(" responsCode:" + jsonStr);
 		}else if(function.equals("addFriend")){
-			ServletContext sc = this.getServletContext(); 
 			String sender = request.getParameter("sender");
 			String receiver = request.getParameter("receiver");
-			//String uname = request.getParameter("uname");
-
 			DBAccess dba = new DBAccess();
 			int flag = dba.createFreindship(sender, receiver);
 			Gson gson = new Gson();
 			String jsonStr = gson.toJson(flag);
 			response.getWriter().write(" responsCode:" + jsonStr);		
 		}else if(function.equals("viewFriends")){
-			ServletContext sc = this.getServletContext(); 
 			String user = request.getParameter("user");
-			// receiver = request.getParameter("receiver");
-			//String uname = request.getParameter("uname");
-
 			DBAccess dba = new DBAccess();
-			//int flag = dba.createFreindship(sender, receiver);
-			//Gson gson = new Gson();
-			//String jsonStr = gson.toJson(flag);
-			//response.getWriter().write(" responsCode:" + jsonStr);		
-		
-		
-//			ArrayList<String> results = dba.getFriends(user);
 			String results = dba.getFriends(user);
-
 			Gson gson = new Gson();
 			String jsonStr = gson.toJson(results);
 			response.getWriter().write("results:" + jsonStr);
 		}else if(function.equals("deleteFriend")){
-			ServletContext sc = this.getServletContext(); 
 			String user = request.getParameter("user");
 			String userToDelete = request.getParameter("userToDelete");
 			DBAccess dba = new DBAccess();
-			//int flag = dba.createFreindship(sender, receiver);
-			//Gson gson = new Gson();
-			//String jsonStr = gson.toJson(flag);
-			//response.getWriter().write(" responsCode:" + jsonStr);		
-		
-		
-//			ArrayList<String> results = dba.getFriends(user);
 			int flag = dba.deleteFriend(user, userToDelete);
-
 			Gson gson = new Gson();
 			String jsonStr = gson.toJson("ResponseCode:" + flag);
 			response.getWriter().write("results:" + jsonStr);
+		}else if(function.equals("viewIncoming")){
+			String user = request.getParameter("user");
+			DBAccess dba = new DBAccess();
+			String results = dba.getIncoming(user);
+			Gson gson = new Gson();
+			String jsonStr = gson.toJson(results);
+			response.getWriter().write("results:" + jsonStr);
+		}else if(function.equals("acceptRequest")){
+			String user = request.getParameter("user");
+			String requestToAccept = request.getParameter("requestToAccept");
+			DBAccess dba = new DBAccess();
+			int results = dba.acceptRequest(user, requestToAccept);
+			Gson gson = new Gson();
+			String jsonStr = gson.toJson(results);
+			response.getWriter().write("Results:" + jsonStr);
+			
+		}else if(function.equals("getRecordsForMap")){
+
+			String uname = request.getParameter("uname");
+			String minlat = request.getParameter("minlat");
+			String minlon = request.getParameter("minlon");
+			String maxlat = request.getParameter("maxlat");
+			String maxlon = request.getParameter("maxlon");
+			String species = request.getParameter("species");
+			String weather = request.getParameter("weather");
+			String startTime = request.getParameter("startTime");
+			String endTime = request.getParameter("endTime");
+			String showFriends = request.getParameter("showFriends");
+			
+			DBAccess dba = new DBAccess();
+			String results = dba.getRecordsForMap(uname, minlat, minlon, maxlat, maxlon, species, weather, startTime, endTime, showFriends);
+
+			Gson gson = new Gson();
+			String jsonStr = gson.toJson(results);
+			response.getWriter().write(" responsCode:" + jsonStr);
 		}
 		
 	}
 
 
-	public static class Emailer  //Class names should always be capitalized
+	public class Emailer
 	{
-
-		
 		private String user = "wildlogicapps@gmail.com";
 		private String pass = "Xycheo38364#^dnIBDUBd4D%3830rno987Nh7H&*86%%##ENNYB::L>lkj";
 		public Emailer (){
@@ -290,16 +274,13 @@ public class DBConectionServlet extends HttpServlet {
 			props.put("mail.smtp.starttls.enable", "true");
 			props.put("mail.smtp.host", "smtp.gmail.com");
 			props.put("mail.smtp.port", "587");
-			//Session session = Session.getInstance(props, null);
-
 			Session session = Session.getDefaultInstance(props, 
 				    new javax.mail.Authenticator(){
 				        protected PasswordAuthentication getPasswordAuthentication() {
 				            return new PasswordAuthentication(
-				                user, pass);// Specify the Username and the PassWord
+				                user, pass);
 				        }
 				});
-			
 			
 			MimeMessage message = new MimeMessage(session);
 
@@ -309,7 +290,6 @@ public class DBConectionServlet extends HttpServlet {
 				message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toAddr));
 				message.setSubject(subject);
 				message.setText(body);
-				//	        Transport.send(message, user, pass);
 				Transport.send(message);
 				
 			}

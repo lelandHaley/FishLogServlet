@@ -13,32 +13,14 @@ public class DBAccess {
 
 	
 
-
-
-	public synchronized boolean insertRecord(String recordName, String recordLat, String recordLon, String recordLure, String recordWeather, String recordSpecies, String time, String temp, String path, String user) {
-		//		try {
-		//			con = DBConnection.getConnection();
-		//			Statement s = con.createStatement();
-		//			String statement = "Select * from users where username = '" + username + "' and password = '" + password + "'";
-		//			System.out.println(statement);
-		//			ResultSet r = s.executeQuery(statement);
-		//			if(r.next())
-		//				return true;
-		//			return false;
-		//		} catch (SQLException e) {
-		//			System.out.println("failed query for does user: " + username + "exist");
-		//			return false;
-		//		}
-
-
-		String sqlStatement ="insert into Records(name, lat, lon, lure, weather, species, time, temperature, path, user) values (?,?,?,?,?,?,?,?,?,?)";
+	public synchronized boolean insertRecord(String recordName, String recordLat, String recordLon, String recordLure, String recordWeather, String recordSpecies, String time, String temp, String path, String user, String hours) {
+		
+		String sqlStatement ="insert into Records(name, lat, lon, lure, weather, species, time, temperature, path, user, hourcaught) values (?,?,?,?,?,?,?,?,?,?,?)";
 		boolean flag = false;
 		ResultSet r = null;
 		PreparedStatement myStmt = null;
 		try {
-			//String temp = "50", path = "/FishLogServlet";
 			con = DBConnection.getConnection();
-			//Statement s = con.createStatement();
 			myStmt = con.prepareStatement(sqlStatement);
 			myStmt.setString(1, recordName);
 			myStmt.setFloat(2, Float.valueOf(recordLat));
@@ -50,6 +32,8 @@ public class DBAccess {
 			myStmt.setString(8, temp);
 			myStmt.setString(9, path);
 			myStmt.setString(10, user);
+			myStmt.setString(11, hours);
+			System.out.println(myStmt.toString());
 			flag = (myStmt.executeUpdate()>=0);
 
 		} catch (Exception e) {
@@ -61,17 +45,12 @@ public class DBAccess {
 	}
 
 
-
-
-
 	public int createUser(String uname, String pword, String email) {
-
 
 		boolean flag = false;
 		Statement selectStatement = null;
 		ResultSet r = null;
 		try {
-			//myConn = Connect.getConnection();
 			con = DBConnection.getConnection();
 			selectStatement = con.createStatement();
 			String sqlUserQueryStatement ="Select count(*) from Users where uname = '"+uname+"'";
@@ -84,7 +63,6 @@ public class DBAccess {
 				return 1; // user exists already
 			
 			con = DBConnection.getConnection();
-			//selectStatement = con.createStatement();
 			String sqlEmailQueryStatement ="Select count(*) from Users where email = '"+email+"'";
 			System.out.println(sqlEmailQueryStatement);
 			ResultSet emailResult = null;
@@ -96,7 +74,6 @@ public class DBAccess {
 				return 6; // user exists already
 
 			String sqlInsertUserStatement ="insert into Users(uname, pword, email) values (?,?,?)";
-			//PreparedStatement myStmt = null;
 
 			con = DBConnection.getConnection(); // may not need thiz
 			PreparedStatement insertStatement = null;
@@ -144,10 +121,6 @@ public class DBAccess {
 		}
 	}
 
-
-
-
-
 	public ArrayList<String> getRecords(String uname, String filter, String filterSpecifics, String filterSpecifics2, String lat, String lon) {
 		Statement selectStatement = null;
 		ResultSet r = null;
@@ -156,16 +129,7 @@ public class DBAccess {
 			con = DBConnection.getConnection();
 			selectStatement = con.createStatement();
 			String sqlRecordQueryStatement ="Select * from Records where user = '"+uname+"'";// and pword = '"+ pword +"'";
-			
-//			if(filter != null){
-//				if(filterSpecifics != null){
-//					sqlRecordQueryStatement += " and "+ filter +" = '" + filterSpecifics + "'";
-//				}
-//				if(filter != null){
-//					sqlRecordQueryStatement += " and "+ filter +" = '" + filterSpecifics + "'";
-//				}
-//				
-//			}
+			sqlRecordQueryStatement += "  or user in (select sender from friendships where receiver = '"+ uname +"' union select receiver from friendships where sender = '"+ uname +"')";
 			if(filter.equalsIgnoreCase("Species")){
 				sqlRecordQueryStatement += " and species = '" + filterSpecifics + "'";	
 			}
@@ -197,20 +161,17 @@ public class DBAccess {
 					rangeMaxLon = temp;
 				}
 				
-//Select * from Records where user = 'user1' and lat  <= 43.840649 AND lat  >= 43.771481
 				sqlRecordQueryStatement += " and lat >= " + rangeMinLat + " AND lat  <=" + rangeMaxLat + " and lon >= " + rangeMinLon + " AND  lon <=" + rangeMaxLon;	
 			}
 			if(filter.equalsIgnoreCase("Time Of Day Recorded")){
 				int starttime = Integer.valueOf(filterSpecifics);
 				int endtime = Integer.valueOf(filterSpecifics2);
-				sqlRecordQueryStatement += " and hourcaught > " + starttime + " and hourcaught < " + endtime; 
+				sqlRecordQueryStatement += " and hourcaught >= " + starttime + " and hourcaught <= " + endtime; 
 			}
 			
 			System.out.println(sqlRecordQueryStatement);
 			r = selectStatement.executeQuery(sqlRecordQueryStatement);
-//			if(!r.next())
-//				return 2; //error code, something went wrong
-			
+
 			String result = "$$$$";
 			 
 			while(r.next()){
@@ -223,58 +184,36 @@ public class DBAccess {
 				result += "time@@" + r.getString("time") + "%%";
 				result += "temperature@@" + r.getString("temperature") + "%%";
 				result += "path@@" + r.getString("path") + "%%";
+				result += "hour@@" + r.getString("hourcaught") + "%%";
 				result += "user@@" + r.getString("user")  + "^^^^^";
-				//results.add(result);
-				//result = "";
 			}
-			result.substring(0, result.length() - 5);
-			results.add(result);
-			//int userExistanceIndicator= r.getInt(1);
-			if(results.isEmpty()){
+			if(result.length() <=4){
 				results.add("No Records Matching Search");
+			}else{
+				result.substring(0, result.length() - 5);
+				results.add(result);
 			}
 			
 		} catch (SQLException e) {
 
 			results.add("Unknown error");// unknown error
 		}
-//		 finally {
-//			DBConnection.releaseConn(r, selectStatement, con);
-//		}
 		System.out.println(results);
 		return results;
 	}
-
-
-
-
 
 	public int editRecord(String uname, String newName, String newLat, String newLon, String newLure,
 			String newWeather, String newSpecies, String newTime, String newTemp, String origName, String origLat,
 			String origLon, String origLure, String origWeather, String origSpecies, String origTime, String origTemp) {
 		// TODO Auto-generated method stub
-		
-		
-		
 		Statement selectStatement = null;
-		//ResultSet r = null;
 		int editFlag = -1;
 		try {
 			con = DBConnection.getConnection();
 			selectStatement = con.createStatement();
-			//String sqlUserQueryStatement = "UPDATE Records SET name = '"+newName+"', lat = '"+newLat+"', lon = '"+newLon+"', lure = '"+newLure+"', weather = '"+newWeather+"', species = '"+newSpecies+"', time = '"+newTime+"', temperature = '"+newTemp+"' WHERE user = '"+uname+"' and name = '"+origName+"'and lat = '"+origLat+"'and lon = '"+origLon+"'and lure = '"+origLure+"'and weather = '"+origWeather+"'and species = '"+origSpecies+"'and time = '"+origTime+"'and temperature = '"+origTemp+"'";
 			String sqlUserQueryStatement = "UPDATE Records SET name = '"+newName+"', lat = "+newLat+", lon = "+newLon+", lure = '"+newLure+"', weather = '"+newWeather+"', species = '"+newSpecies+"', time = '"+newTime+"', temperature = "+newTemp+" WHERE user = '"+uname+"' and name = '"+origName+"' and lat = "+origLat+" and lon = "+origLon+" and lure = '"+origLure+"' and weather = '"+origWeather+"' and species = '"+origSpecies+"' and time = '"+origTime+"' and temperature = "+origTemp+"";
 			System.out.println(sqlUserQueryStatement);
 			editFlag = selectStatement.executeUpdate(sqlUserQueryStatement);
-					//executeQuery(sqlUserQueryStatement);
-			//if(!r.next())
-				//return 2; //error code, something went wrong
-			//int userExistanceIndicator = r.getInt(1);
-//			if(editFlag != 1)
-//				return 1; // user password combo doesnt exist
-//			else{
-//				return 0;
-//			}
 			return editFlag;
 			
 		} catch (SQLException e) {
@@ -283,8 +222,6 @@ public class DBAccess {
 		} finally {
 			DBConnection.releaseConn(null, selectStatement, con);
 		}
-
-		//return -1;
 	}
 
 
@@ -294,7 +231,6 @@ public class DBAccess {
 	public int deleteRecord(String uname, String name, String lat, String lon, String lure, String weather,
 			String species, String time, String temp) {
 		Statement selectStatement = null;
-		//ResultSet r = null;
 		int editFlag = -1;
 		try {
 			con = DBConnection.getConnection();
@@ -311,8 +247,6 @@ public class DBAccess {
 		} finally {
 			DBConnection.releaseConn(null, selectStatement, con);
 		}
-
-		//return -1;
 	}
 
 
@@ -321,7 +255,6 @@ public class DBAccess {
 		Statement selectStatement = null;
 		ResultSet r = null;
 		try {
-			//myConn = Connect.getConnection();
 			con = DBConnection.getConnection();
 			selectStatement = con.createStatement();
 			String sqlUserQueryStatement ="Select count(*) from Users where uname = '"+receiver+"'";
@@ -333,7 +266,6 @@ public class DBAccess {
 			if(userExistanceIndicator == 0)
 				return 1; // user doesnt exits
 			con = DBConnection.getConnection();
-			//selectStatement = con.createStatement();
 			String sqlfriendshipRequestQueryStatement ="Select count(*) from friendships where accepted = false and sender = '"+ sender +"' and receiver = '"+ receiver +"' or receiver = '"+ sender +"' and receiver = '"+ sender + "'";
 			System.out.println(sqlfriendshipRequestQueryStatement);
 			ResultSet friendshipRequestResult = null;
@@ -355,8 +287,6 @@ public class DBAccess {
 				return 3; // freindship exists already
 
 			String sqlInsertUserStatement ="insert into friendships(sender, receiver, accepted) values (?,?,?)";
-			//PreparedStatement myStmt = null;
-
 			con = DBConnection.getConnection(); // may not need thiz
 			PreparedStatement insertStatement = null;
 			insertStatement = con.prepareStatement(sqlInsertUserStatement);
@@ -380,13 +310,11 @@ public class DBAccess {
 	}
 	
 	public String getFriends(String user) {
-		boolean flag = false;
 		ArrayList<String> results = new ArrayList<String>();
 		Statement selectStatement = null;
 		String result;
 		
 		try {
-			//myConn = Connect.getConnection();
 			con = DBConnection.getConnection();
 			selectStatement = con.createStatement();
 			String sqlUserIsSenderQueryStatement ="Select receiver from friendships where sender = '"+user+"' and accepted = true";
@@ -405,7 +333,9 @@ public class DBAccess {
 			while(userIsReceiver.next()){
 				result += userIsReceiver.getString("sender") + "^^^";
 			}
-			result = result.substring(0, result.length() - 3);
+			if(result.length() > 4){
+				result = result.substring(0, result.length() - 3);
+			}		
 			results.add(result);
 			
 			//for request not yet accepted
@@ -429,20 +359,15 @@ public class DBAccess {
 			}
 			result = result.substring(0, result.length() - 3);
 			results.add(result);
-			
-			//int userExistanceIndicator= r.getInt(1);
+
 			if(results.isEmpty()){
 				return "No Records Matching Search";
-				//results.add("No Records Matching Search");
 			}
 			
 		} catch (SQLException e) {
 			return "SQL Error";
-			//results.add("Unknown error");// unknown error
 		}
-//		 finally {
-//			DBConnection.releaseConn(r, selectStatement, con);
-//		}
+
 		System.out.println(results);
 		return result;
 	}
@@ -453,7 +378,6 @@ public class DBAccess {
 
 	public int deleteFriend(String user, String userToDelete) {
 		Statement selectStatement = null;
-		//ResultSet r = null;
 		int editFlag = -1;
 		try {
 			con = DBConnection.getConnection();
@@ -471,5 +395,135 @@ public class DBAccess {
 			DBConnection.releaseConn(null, selectStatement, con);
 		}
 
+	}
+
+
+	public String getRecordsForMap(String uname, String minlat, String minlon, String maxlat, String maxlon,
+			String species, String weather, String startTime, String endTime, String showFriends) {
+			
+		System.out.println("DEBUG");
+		
+		int sTime = Integer.parseInt(startTime);
+		int eTime = Integer.parseInt(endTime);
+		
+		Statement selectStatement = null;
+		ResultSet r = null;
+		ArrayList<String> results = new ArrayList<String>();
+		String result = "";
+		try {
+			con = DBConnection.getConnection();
+			selectStatement = con.createStatement();
+			String sqlRecordQueryStatement ="Select * from Records where (lat >= " + minlat + " AND lat  <=" + maxlat + " and lon >= " + minlon + " AND  lon <=" + maxlon;
+
+			if(!species.equalsIgnoreCase("all species")){
+				sqlRecordQueryStatement += " and species = '" + species + "'";	
+			}
+			if(!weather.equalsIgnoreCase("all conditions")){
+				sqlRecordQueryStatement += " and weather = '" + weather + "'";	
+			}
+			if(sTime > 0){
+				sqlRecordQueryStatement += " and hourcaught >= " + sTime;
+			}
+			if(eTime < 24){
+				sqlRecordQueryStatement += " and hourcaught <= " + eTime;
+			}
+			
+			sqlRecordQueryStatement += ") and (user = '"+uname+"'";
+			
+			if(showFriends.equalsIgnoreCase("true")){
+				sqlRecordQueryStatement += "  or user in (select sender from friendships where receiver = '"+ uname +"' union select receiver from friendships where sender = '"+ uname +"'))";
+			}else{
+				sqlRecordQueryStatement += ")";
+			}
+			
+			
+			System.out.println(sqlRecordQueryStatement);
+			r = selectStatement.executeQuery(sqlRecordQueryStatement);
+
+			result = "$$$$";
+			 
+			while(r.next()){
+				result += "name@@" + r.getString("name") + "%%";
+				result += "lat@@" + r.getString("lat") + "%%";
+				result += "lon@@" + r.getString("lon") + "%%";
+				result += "lure@@" + r.getString("lure") + "%%";
+				result += "weather@@" + r.getString("weather") + "%%";
+				result += "species@@" + r.getString("species") + "%%";
+				result += "time@@" + r.getString("time") + "%%";
+				result += "temperature@@" + r.getString("temperature") + "%%";
+				result += "path@@" + r.getString("path") + "%%";
+				result += "hour@@" + r.getString("hourcaught") + "%%";
+				result += "user@@" + r.getString("user")  + "^^^^^";
+
+			}
+			if(result.length() <= 4){
+				result = "No Records Matching Search";
+			}else{
+				result.substring(0, result.length() - 5);
+				results.add(result);
+			}
+			
+		} catch (SQLException e) {
+
+			results.add("Unknown error");// unknown error
+		}
+
+		System.out.println(results);
+		return result;
+
+	}
+
+	public String getIncoming(String user) {
+
+			ArrayList<String> results = new ArrayList<String>();
+			Statement selectStatement = null;
+			String result;
+			
+			try {
+				con = DBConnection.getConnection();
+				selectStatement = con.createStatement();
+				String sqlUserIsSenderQueryStatement ="Select sender from friendships where receiver = '"+user+"' and accepted = false";
+				System.out.println(sqlUserIsSenderQueryStatement);
+				ResultSet userIsSender = null;
+				result = "$$$$";
+				userIsSender = selectStatement.executeQuery(sqlUserIsSenderQueryStatement);	
+				while(userIsSender.next()){
+					result += userIsSender.getString("sender") + "^^^";
+				}
+				
+				if(result.length() > 4){
+					result = result.substring(0, result.length() - 3);
+				}else{
+					result = "$$$$No Incoming Friendship Requests";
+				}
+				
+			} catch (SQLException e) {
+				return "SQL Error";
+			}
+
+			System.out.println(results);
+			return result;
+
+	}
+	
+	public int acceptRequest(String uname, String requestSender){
+
+		Statement selectStatement = null;
+		int editFlag = -1;
+		try {
+			con = DBConnection.getConnection();
+			selectStatement = con.createStatement();
+			String sqlUserQueryStatement = "UPDATE friendships SET accepted = true WHERE sender = '"+requestSender+"' and receiver = '"+uname+"' and accepted = false";
+			System.out.println(sqlUserQueryStatement);
+			editFlag = selectStatement.executeUpdate(sqlUserQueryStatement);
+
+			return editFlag;
+			
+		} catch (SQLException e) {
+
+			return 3;// unknown error
+		} finally {
+			DBConnection.releaseConn(null, selectStatement, con);
+		}
 	}
 }
